@@ -21,6 +21,7 @@
 
 
 #include <sstream>
+#include <cstring>
 
 #include "vulkan/vulkan.h"
 
@@ -458,7 +459,7 @@ void DenoiserOptix::createBufferCuda(BufferCuda& buf)
   vkGetMemoryWin32HandleKHR(m_device, &info, &buf.handle);
 #else
   VkMemoryGetFdInfoKHR info{VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR};
-  info.memory     = memInfo.memory;
+  info.memory     = mem_info.memory;
   info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT;
   vkGetMemoryFdKHR(m_device, &info, &buf.handle);
 
@@ -473,8 +474,8 @@ void DenoiserOptix::createBufferCuda(BufferCuda& buf)
   cuda_ext_mem_handle_desc.type                = cudaExternalMemoryHandleTypeOpaqueWin32;
   cuda_ext_mem_handle_desc.handle.win32.handle = buf.handle;
 #else
-  cudaExtMemHandleDesc.type      = cudaExternalMemoryHandleTypeOpaqueFd;
-  cudaExtMemHandleDesc.handle.fd = buf.handle;
+  cuda_ext_mem_handle_desc.type      = cudaExternalMemoryHandleTypeOpaqueFd;
+  cuda_ext_mem_handle_desc.handle.fd = buf.handle;
 #endif
 
   cudaExternalMemory_t cuda_ext_mem_vertex_buffer{};
@@ -482,7 +483,7 @@ void DenoiserOptix::createBufferCuda(BufferCuda& buf)
 
 #ifndef WIN32
   // fd got consumed
-  cudaExtMemHandleDesc.handle.fd = -1;
+  cuda_ext_mem_handle_desc.handle.fd = -1;
 #endif
 
   cudaExternalMemoryBufferDesc cuda_ext_buffer_desc{};
@@ -500,7 +501,7 @@ void DenoiserOptix::createSemaphore()
 #ifdef WIN32
   auto handle_type = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 #else
-  auto handleType                = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
+  auto handle_type                = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT;
 #endif
 
   VkSemaphoreTypeCreateInfo timeline_create_info{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
@@ -523,10 +524,10 @@ void DenoiserOptix::createSemaphore()
   handle_info.semaphore  = m_semaphore.vk;
   vkGetSemaphoreWin32HandleKHR(m_device, &handle_info, &m_semaphore.handle);
 #else
-  VkSemaphoreGetFdInfoKHR{VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
-  handleInfo.handleType = handleType;
-  handleInfo.semaphore  = m_semaphore.vk;
-  vkGetSemaphoreFdKHR(m_device, &handleInfo, &m_semaphore.handle);
+  VkSemaphoreGetFdInfoKHR handle_info{VK_STRUCTURE_TYPE_SEMAPHORE_GET_FD_INFO_KHR};
+  handle_info.handleType = handle_type;
+  handle_info.semaphore  = m_semaphore.vk;
+  vkGetSemaphoreFdKHR(m_device, &handle_info, &m_semaphore.handle);
 
 #endif
 
@@ -538,8 +539,8 @@ void DenoiserOptix::createSemaphore()
   external_semaphore_handle_desc.type                = cudaExternalSemaphoreHandleTypeTimelineSemaphoreWin32;
   external_semaphore_handle_desc.handle.win32.handle = static_cast<void*>(m_semaphore.handle);
 #else
-  externalSemaphoreHandleDesc.type      = cudaExternalSemaphoreHandleTypeTimelineSemaphoreFd;
-  externalSemaphoreHandleDesc.handle.fd = m_semaphore.handle;
+  external_semaphore_handle_desc.type      = cudaExternalSemaphoreHandleTypeTimelineSemaphoreFd;
+  external_semaphore_handle_desc.handle.fd = m_semaphore.handle;
 #endif
 
   CUDA_CHECK(cudaImportExternalSemaphore(&m_semaphore.cu, &external_semaphore_handle_desc));
